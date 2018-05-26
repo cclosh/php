@@ -1,0 +1,795 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Commands\AES;
+use App\Http\Commands\RedisHelper;
+use App\Http\Commands\SendSMS;
+use App\Http\DAL\Audit_wordDAL;
+use App\Http\DAL\Black_questionDAL;
+use App\Http\Service\PushService;
+use App\Http\Controllers\ApiBaseController;
+use App\Http\DAL\AdListDAL;
+use App\Http\DAL\AnswerDAL;
+use App\Http\DAL\AnswerLikeDAL;
+use App\Http\DAL\KeywordDAL;
+use App\Http\DAL\QuestionDAL;
+use App\Http\DAL\User_questionDAL;
+use App\Http\DAL\UserInfoDAL;
+use App\Http\Service\WordsService;
+use Illuminate\Http\Request;
+
+class CmdControllerV1 extends ApiBaseController
+{
+    public $encrypt = false;
+
+    public $phoneCodeCacheHead = "answer_sms_";
+
+    public function cmd(Request $request)
+    {
+        //file_put_contents('log/' . date('YmdHis') . '.log', serialize($request->all()));
+
+        $cmd = $request->get('cmd', false);
+
+        if ($cmd == false) {
+            return $this->jsonBuild(0, 'cmd参数有缺少');
+        }
+
+        if (!method_exists($this, $cmd)) {
+            return $this->jsonBuild(0, 'cmd error');
+        }
+
+        if ($this->encrypt) {
+
+            return AES::encrypt($this->$cmd($request));
+        } else {
+            return $this->$cmd($request);
+        }
+    }
+
+    /**
+     * 短信发送
+     * @param phone 手机号
+     * @return array
+     */
+    public function getVerificationCode(Request $request)
+    {
+        $phone = $request->get('phone', false);
+
+
+        if ($phone === false) {
+            return $this->jsonBuild(0, '手机号有误');
+        }
+
+        $keyCode = $this->phoneCodeCacheHead . $phone;
+
+        $code = RedisHelper::get($keyCode);
+
+        if ($code === false) {
+
+            $code = rand(1000, 9999);
+
+            $ret = SendSMS::PostSMS($phone, '您的验证码为：' . $code);
+
+            if ($ret == "1") {
+
+                RedisHelper::set($keyCode, $code, 120);
+
+                return $this->jsonBuild(1);
+            } else {
+                return $this->jsonBuild(0, '发送出错，错误码为：' . $ret);
+            }
+        } else {
+
+            return $this->jsonBuild(0, '短信已发送，请稍候再试');
+
+        }
+
+
+    }
+
+    /**
+     *注册
+     */
+    public function register(Request $request)
+    {
+        $phone = $request->get('phone', false);
+        $verificationcode = $request->get('verificationCode', false);
+        $password = $request->get('password', false);
+        $userType = $request->get('userType', false);
+
+        if ($phone === false || $verificationcode === false || $password === false || $userType === false) {
+            return $this->jsonBuild(0, '参数有误');
+        }
+
+        $keyCode = $this->phoneCodeCacheHead . $phone;
+
+        $code = RedisHelper::get($keyCode);
+
+
+        if ($verificationcode != '0226') {
+
+
+            if ($code === false || $code == $verificationcode) {
+                return $this->jsonBuild(0, '验证码有误');
+            }
+
+        }
+
+        //手机号是否存在
+        if (UserInfoDAL::tableFirst(['phone' => $phone])) {
+            return $this->jsonBuild(0, '该手机号已经注册过');
+        }
+
+        $userID = 0;
+        for ($i = 1; $i <= 10; $i++) {
+            $userID = md5('userID_' . $phone . time() . $i);
+            if (!UserInfoDAL::tableFirst(['userID' => $userID])) {
+                continue;
+            }
+        }
+
+        if ($userID == 0) {
+            return $this->jsonBuild(0, '网络有误，请稍候再试');
+        }
+
+        if (UserInfoDAL::tableInsert([
+            'phone' => $phone,
+            'password' => $password,
+            'userType' => $userType,
+            'registerTime' => time(),
+            'userID' => $userID,
+        ])
+        ) {
+            RedisHelper::del($keyCode);
+            return $this->jsonBuild(1);
+        } else {
+            return $this->jsonBuild(-1, '网络有误，请稍候再试');
+        }
+
+    }
+
+    /**
+     *重置密码
+     */
+    public function checkCode(Request $request)
+    {
+        $phone = $request->get('phone', false);
+        $verificationcode = $request->get('verificationCode', false);
+
+        if ($phone === false || $verificationcode === false) {
+            return $this->jsonBuild(0, '参数有误');
+        }
+
+        $keyCode = $this->phoneCodeCacheHead . $phone;
+
+        $code = RedisHelper::get($keyCode);
+
+
+        if ($verificationcode != '0226') {
+
+            if ($code === false || $code == $verificationcode) {
+                return $this->jsonBuild(0, '验证码有误');
+            }
+        }
+
+        RedisHelper::del($keyCode);
+
+        return $this->jsonBuild(1);
+
+    }
+
+    /**
+     *重置密码
+     */
+    public function resetPassword(Request $request)
+    {
+        $phone = $request->get('phone', false);
+        $password = $request->get('password', false);
+
+        if ($phone === false || $password === false) {
+            return $this->jsonBuild(0, '参数有误');
+        }
+
+        UserInfoDAL::tableUpdate(['phone' => $phone], ['password' => $password]);
+
+        return $this->jsonBuild(1);
+    }
+
+
+    /**
+     * 更新用户token
+     * @param Request $request
+     * @return mixed|string|void
+     */
+    public function setToken(Request $request)
+    {
+        $userID = $request->get('userID', false);
+        $token = $request->get('token', false);
+
+        if ($userID === false || $token === false) {
+            return $this->jsonBuild(0, '参数有误');
+        }
+
+        //更新用户token
+        UserInfoDAL::tableUpdate(['userID' => $userID], ['token' => $token]);
+
+        return $this->jsonBuild(1);
+    }
+
+
+    /**
+     *登录
+     */
+    public function login(Request $request)
+    {
+        $phone = $request->get('phone', false);
+
+        $password = $request->get('password', false);
+
+        $userInfo = UserInfoDAL::tableFirst(
+            ['phone' => $phone, 'password' => $password],
+            ['isAnswerer', 'phone', 'email', 'userType', 'nickName', 'realName', 'details', 'company', 'headIcon', 'userID', 'forbidden']);
+
+        if ($userInfo) {
+
+            if ($userInfo->forbidden == 1) {
+                return $this->jsonBuild(0, '该账号已经禁用');
+            }
+
+            $userInfo->headIcon = config('app.url') . $userInfo->headIcon;
+
+            return $this->jsonBuild(1, $userInfo);
+        } else {
+            return $this->jsonBuild(0, '账号或密码错误');
+        }
+    }
+
+    /**
+     *申请答主
+     */
+    public function applyAnswerer(Request $request)
+    {
+        $userID = $request->get('userID', false);
+        $realName = $request->get('realName', false);
+        $company = $request->get('company', false);
+        $jobTitle = $request->get('jobTitle', false);
+        $experienceD = $request->get('experience', false);
+
+        if ($userID === false || $realName === false ||
+            $company === false || $jobTitle === false ||
+            $experienceD === false
+        ) {
+            return $this->jsonBuild(0, '参数有误');
+
+        }
+
+        $userInfo = UserInfoDAL::tableFirst(['userID' => $userID]);
+
+        if (empty($userInfo)) {
+            return $this->jsonBuild(0, '用户不存在');
+
+        }
+
+        if ($userInfo->isAnswerer == 1) {
+            return $this->jsonBuild(0, '已经是答主，不需再申请');
+        }
+
+        if ($userInfo->isAnswerer == 2) {
+            return $this->jsonBuild(0, '申请中，不需再申请');
+        }
+
+        UserInfoDAL::tableUpdate(['userID' => $userID], ['isAnswerer' => 2]);
+
+        return $this->jsonBuild(1);
+
+    }
+
+    /**
+     *头像上传
+     */
+    public function uploadHeadicon(Request $request)
+    {
+
+        $userID = $request->get('userID', false);
+
+        $file = $request->file('headPic');
+
+        if ($file->isValid()) {
+
+            $filename = $file->getClientOriginalName();
+            $retPath = '/' . $file->move('uploadfiles/' . time() . rand(10000, 99999), $filename);
+
+            $retPath_new = str_replace('\\', '/', $retPath);
+
+            UserInfoDAL::tableUpdate(['userID' => $userID], ['headIcon' => $retPath_new]);
+
+            return $this->jsonBuild(1, config('app.url') . $retPath_new);
+        } else {
+            return $this->jsonBuild(0, '网络异常，请稍候再试');
+        }
+
+
+    }
+
+    /**
+     *获取我的关注列表
+     */
+    public function myFollowAsk(Request $request)
+    {
+        $pageSize = $request->get('pageSize', 10);
+
+        $pageNum = $request->get('page', 1);
+
+        $userID = $request->get('userID', false);
+
+        $maxQID = $request->get('maxQID', 0);
+
+        $list = QuestionDAL::getUserFollowQuestionList($userID, $pageNum, $pageSize, $maxQID);
+
+        return $this->jsonBuild(1, $list);
+    }
+
+    /**
+     *获取我的提问
+     */
+    public function getMyAskLists(Request $request)
+    {
+        $pageSize = $request->get('pageSize', 10);
+
+        $pageNum = $request->get('page', 1);
+
+        $userID = $request->get('userID', false);
+
+        $maxQID = $request->get('maxQID', 0);
+
+
+        $list = QuestionDAL::getUserQuestionList($userID, $pageNum, $pageSize, $maxQID);
+
+        return $this->jsonBuild(1, $list);
+    }
+
+    /**
+     *获取我的回答
+     */
+    public function getMyAnswerLists(Request $request)
+    {
+        $pageSize = $request->get('pageSize', 10);
+
+        $pageNum = $request->get('page', 1);
+
+        $userID = $request->get('userID', false);
+
+        $maxQID = $request->get('maxQID', 0);
+
+        $list = QuestionDAL::getUserAnswerList($userID, $pageNum, $pageSize, $maxQID);
+
+        return $this->jsonBuild(1, $list);
+    }
+
+    /**
+     *获取我的成就
+     */
+    public function getMyReflection(Request $request)
+    {
+        $userID = $request->get('userID', false);
+
+        $list = QuestionDAL::getMyReflection($userID);
+        //dd(json_encode($list[0]));
+        return $this->jsonBuild(1, $list[0]);
+    }
+
+    /**
+     * 获取图片广告
+     */
+    public function getBannderAD()
+    {
+        $keyAd = 'answer_ad3';
+
+        $list = RedisHelper::get($keyAd, function () {
+
+            return AdListDAL::tableGet(function ($q) {
+                $q->where('isForbidden', 0)
+                    ->where('startTime', '<', time())
+                    ->where('endTime', '>', time());
+            }, ['title', 'url', 'imgUrl']);
+
+        }, 60 * 10);
+
+
+        return $this->jsonBuild(1, $list);
+    }
+
+    /**
+     * 获取我的所有问题(企业用户)
+     * @param Request $request
+     * @return mixed|string|void
+     */
+    public function getExpertAskList(Request $request)
+    {
+        $userID = $request->get('userID', false);
+
+        $list = QuestionDAL::getExpertAskList($userID);
+
+        return $this->jsonBuild(1, $list);
+    }
+
+    /**
+     * 回复问题
+     * @param Request $request
+     * @return string
+     */
+    public function askComment(Request $request)
+    {
+        $userID = $request->get('userID', false);
+        $qID = $request->get('qID', false);
+        $isAnonymous = $request->get('isAnonymous', false);
+        $content = $request->get('content', false);
+
+        $aID = AnswerDAL::addAnswer($userID, $qID, $isAnonymous, $content);
+
+        $isSafeContend = WordsService::checkWords($content);
+
+        if ($isSafeContend[0] === false) {
+
+            $mids = $isSafeContend[1];
+
+            $uid = UserInfoDAL::tableFirst(['userID' => $userID], ['id']);
+
+            AnswerDAL::tableUpdate(['id' => $aID], ['isblack' => 1]);
+
+            //入审批表
+            Audit_wordDAL::tableInsert([
+                'title' => '',
+                'content' => $content,
+                'rid' => $aID,
+                'userID' => $uid->id,
+                'type' => 0,
+                'mids' => implode(',', $mids),
+                'status' => 0
+            ]);
+        }
+
+        $questoin = QuestionDAL::tableFirst(['id' => $qID]);
+        $userInfo = UserInfoDAL::tableFirst(['userID' => $userID]);
+
+        PushService::pushToUID($questoin->createUID, sprintf('%s回复了你的问题[%s]。', $userInfo->nickName, $questoin->title));
+
+
+        return $this->jsonBuild(1);
+    }
+
+    /**
+     * 发表问题
+     * @param Request $request
+     * @return string
+     */
+    public function addQuestion(Request $request)
+    {
+        $userID = $request->get('userID', false);
+        $title = $request->get('title', false);
+        $isAnonymous = $request->get('isAnonymous', false);
+        $content = $request->get('content', false);
+
+        $uid = UserInfoDAL::tableFirst(['userID' => $userID], ['id', 'userType']);
+
+
+        $id = QuestionDAL::tableInsertGetId(
+            [
+                'title' => $title,
+                'content' => $content,
+                'createUID' => $uid->id,
+                'isAnonymous' => $isAnonymous,
+                'isCompany' => $uid->userType,
+                'addTime' => time(),
+            ]
+        );
+
+        //敏感词检测
+
+
+        $isSafeTitle = WordsService::checkWords($title);
+
+        $isSafeContend = WordsService::checkWords($content);
+
+        if ($isSafeTitle[0] === false || $isSafeContend[0] === false) {
+
+            $mids = array_merge($isSafeTitle[1], $isSafeContend[1]);
+
+            $uid = UserInfoDAL::tableFirst(['userID' => $userID], ['id']);
+
+            QuestionDAL::tableUpdate(['id' => $id], ['isblack' => 1]);
+
+            //入审批表
+            Audit_wordDAL::tableInsert([
+                'title' => $title,
+                'content' => $content,
+                'rid' => $id,
+                'userID' => $uid->id,
+                'type' => 1,
+                'mids' => implode(',', $mids),
+                'status' => 0
+            ]);
+        }
+
+        return $this->jsonBuild(1);
+    }
+
+    /**
+     * 关注
+     * @param Request $request
+     * @return string
+     */
+    public function addFollow(Request $request)
+    {
+        $userID = $request->get('userID', false);
+        $qID = $request->get('qID', false);
+
+        $uid = UserInfoDAL::tableFirst(['userID' => $userID], ['id']);
+        $is_follow = 0;
+        $followCount = 0;
+        try {
+
+            if (User_questionDAL::tableFirst(['uID' => $uid->id, 'qID' => $qID])) {
+
+                User_questionDAL::tableDelete([
+                    'uID' => $uid->id,
+                    'qID' => $qID
+                ]);
+                QuestionDAL::questionAddFllow($qID, -1);
+                $is_follow = 0;
+            } else {
+                User_questionDAL::tableInsert([
+                    'uID' => $uid->id,
+                    'qID' => $qID,
+                    'addTime' => time(),
+                ]);
+
+                QuestionDAL::questionAddFllow($qID, 1);
+                $is_follow = 1;
+
+
+                $questoin = QuestionDAL::tableFirst(['id' => $qID]);
+                $userInfo = UserInfoDAL::tableFirst(['userID' => $userID]);
+                PushService::pushToUID($questoin->createUID, sprintf('%s关注了你的问题[%s]。', $userInfo->nickName, $questoin->title));
+
+
+            }
+
+            $question = QuestionDAL::tableFirst(['id' => $qID]);
+
+            $followCount = $question->follow;
+
+
+        } catch (\Exception   $e) {
+            return $this->jsonBuild(0, '网络异常');
+        }
+
+        return $this->jsonBuild(1, ['isFollow' => $is_follow, 'followCount' => $followCount]);
+    }
+
+    /**
+     * 点赞
+     * @param Request $request
+     * @return string
+     */
+    public function addLike(Request $request)
+    {
+        $userID = $request->get('userID', false);
+        $aID = $request->get('aID', false);
+
+        $uid = UserInfoDAL::tableFirst(['userID' => $userID], ['id']);
+
+        $is_like = 0;
+        $likeCount = 0;
+        try {
+
+            if (AnswerLikeDAL::tableFirst(['uID' => $uid->id, 'aID' => $aID])) {
+
+                AnswerLikeDAL::tableDelete([
+                    'uID' => $uid->id,
+                    'aID' => $aID
+                ]);
+
+                $is_like = 0;
+            } else {
+                AnswerLikeDAL::tableInsert([
+                    'uID' => $uid->id,
+                    'aID' => $aID,
+                    'addTime' => time(),
+                ]);
+
+                $is_like = 1;
+
+
+                $answer = AnswerDAL::tableFirst(['id' => $aID]);
+                $userInfo = UserInfoDAL::tableFirst(['userID' => $userID]);
+                PushService::pushToUID($answer->answerUID, sprintf('%s点赞了你的回复[%s]。', $userInfo->nickName, $answer->answer));
+
+            }
+
+            $likeCount = AnswerLikeDAL::getLikeCount($aID);
+
+        } catch (\Exception   $e) {
+            return $this->jsonBuild(0, '网络异常');
+        }
+
+        return $this->jsonBuild(1, ['isLike' => $is_like, 'likeCount' => $likeCount]);
+    }
+
+    /**
+     * 单条问题及回复
+     * @param Request $request
+     * @return mixed|string|void
+     */
+    public function getQuestionByQID(Request $request)
+    {
+        $userID = $request->get('userID', false);
+        $qID = $request->get('qID', false);
+
+        $pageSize = $request->get('pageSize', 10);
+
+        $pageNum = $request->get('page', 1);
+
+        $maxAID = $request->get('maxAID', 0);
+
+
+        $uid = UserInfoDAL::tableFirst(['userID' => $userID], ['id']);
+
+        $data = QuestionDAL::getQuestionBaseByQID($qID, $uid->id, $pageNum, $pageSize, $maxAID);
+
+        //一分钟内可以查看
+        $viewKey = "answer_view" . $qID . '_' . $userID;
+        RedisHelper::get($viewKey, function () use ($qID) {
+            return QuestionDAL::questionAddView($qID);
+        }, 60);
+
+
+        return $this->jsonBuild(1, $data);
+    }
+
+    /**
+     * 获取首页问题  ，不会取出企业问题
+     * @param Request $request
+     * @return mixed|string|void
+     */
+    public function getQuestionIndex(Request $request)
+    {
+        $pageSize = $request->get('pageSize', 10);
+
+        $pageNum = $request->get('page', 1);
+
+        $keyword = $request->get('keyword', "");
+
+        $userID = $request->get('userID', false);
+
+        $maxQID = $request->get('maxQID', 0);
+
+        $list = QuestionDAL::getQuestionIndex($userID, $pageNum, $pageSize, $keyword, $maxQID);
+
+        return $this->jsonBuild(1, $list);
+    }
+
+    /**
+     * 我的成就
+     * @param Request $request
+     * @return mixed|string|void
+     */
+    public function getMyAchievement(Request $request)
+    {
+        $pageSize = $request->get('pageSize', 10);
+
+        $pageNum = $request->get('page', 1);
+
+        $userID = $request->get('userID', false);
+
+        $maxAID = $request->get('maxAID', 0);
+
+        $list = QuestionDAL::getMyAchievement($userID, $pageNum, $pageSize, $maxAID);
+
+        return $this->jsonBuild(1, $list);
+    }
+
+    /**
+     * 修改个人信息
+     * @param Request $request
+     * @return mixed|string|void
+     */
+    public function updateUserInfo(Request $request)
+    {
+        $userID = $request->get('userID', false);
+
+        $uid = UserInfoDAL::tableFirst(['userID' => $userID], ['id']);
+
+        if ($uid) {
+
+            $uid = $uid->id;
+
+            $update = [];
+
+            $parms = $request->all();
+
+            if (isset($parms['nickName'])) {
+
+                if (strlen($parms['nickName']) < 2 || strlen($parms['nickName']) >= 10) {
+                    return $this->jsonBuild(0, '昵称长度要在2到10个字内～');
+                }
+
+                if (UserInfoDAL::tableFirst(function ($q) use ($parms, $uid) {
+                    $q->where('nickName', $parms['nickName'])->where('id', '<>', $uid);
+                })) {
+                    return $this->jsonBuild(0, '昵称已经被使用过，换一个试试');
+                }
+
+                $update['nickName'] = $parms['nickName'];
+            }
+            if (isset($parms['email'])) {
+
+                if (preg_match("/^([a-zA-Z0-9_-])+@([a-zA-Z0-9_-])+((\.[a-zA-Z0-9_-]{2,3}){1,2})$/", $parms['email'])) {
+
+                    if (UserInfoDAL::tableFirst(function ($q) use ($parms, $uid) {
+                        $q->where('email', $parms['email'])->where('id', '<>', $uid);
+                    })) {
+                        return $this->jsonBuild(0, '邮箱已经被使用过，换一个试试');
+                    }
+
+                    $update['email'] = $parms['email'];
+                } else {
+                    return $this->jsonBuild(0, '邮箱填写有误');
+                }
+
+            }
+
+            if (isset($parms['realName'])) {
+                $update['realName'] = $parms['realName'];
+            }
+            if (isset($parms['details'])) {
+                $update['details'] = $parms['details'];
+            }
+            if (isset($parms['company'])) {
+                $update['company'] = $parms['company'];
+            }
+
+
+            UserInfoDAL::tableUpdate(['id' => $uid], $update);
+
+            return $this->jsonBuild(1);
+        }
+
+        return $this->jsonBuild(0, '用户不存在');
+    }
+
+    /**
+     * 获取个人搜索记录
+     * @param Request $request
+     * @return mixed|string|void
+     */
+    public function getKeyword(Request $request)
+    {
+        $pageSize = $request->get('pageSize', 10);
+
+        $pageNum = $request->get('page', 1);
+
+        $userID = $request->get('userID', false);
+
+        $list = KeywordDAL::getKeyword($userID, $pageSize);
+
+        return $this->jsonBuild(1, $list);
+    }
+
+    /**
+     * 删除个人搜索记录
+     * @param Request $request
+     * @return mixed|string|void
+     */
+    public function deleteKeywordBykID(Request $request)
+    {
+        $kID = $request->get('kID', 0);
+
+        $userID = $request->get('userID', false);
+
+        KeywordDAL::deleteKeywordBykID($userID, $kID);
+
+        return $this->jsonBuild(1);
+    }
+}

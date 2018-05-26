@@ -1,0 +1,75 @@
+<?php
+namespace App\Http\DAL;
+use DB;
+class MajorDAL{
+
+    /*
+     * 获取专业答主的列表
+     */
+    public static function getMajorList($keyword,$pageNum,$pageSize){
+
+        return DB::table('userinfo')
+            ->join('answer','answer.answerUID','=','userinfo.id')
+            ->join('question','question.id','=','answer.qID')
+            ->where('userinfo.userType','=',4)
+            ->where(function ($query) use ($keyword){
+                if(!empty($keyword)){
+                    //$query->where('');
+                }
+            })
+            ->select(
+                'answer.id',
+                'userinfo.id as userID',
+                'userinfo.nickName as userName',
+                'question.createUID',
+                'answer.qID',
+                'question.title',
+                'answer.answer as content',
+                'answer.addTime',
+                'answer.status'
+            )
+            ->skip(($pageNum-1)*$pageSize)
+            ->take($pageSize)
+            ->get();
+    }
+
+    /*
+     * 批量删除
+     */
+    public static function getDel($id){
+        return DB::table('answer')->whereIn('id',$id)->delete();
+    }
+
+
+    /*
+     * 是否点赞
+     */
+    public static function getlike($aid){
+        $data= DB::table('answerlike')
+            ->where('aID',$aid)
+            ->select('aID')
+            ->get();
+        if($data){
+            return 1;
+        }
+        return 0;
+    }
+
+    /*
+     * 新增专业答题
+     */
+    public static function getAdd($userName,$title,$content,$ndate){
+
+        $str=["nickName"=>$userName,"realName"=>$userName,"password"=>'e10adc3949ba59abbe56e057f20f883e','userType'=>4,'isAnswerer'=>1,'userID'=>md5(date('Y-m-d H:i:s')),'phone'=>"13".rand(1,100000000)];
+
+        $uid=DB::table('userinfo')->insertGetId($str);
+
+        $qid=DB::table('question')->insertGetId(["title"=>$title,"createUID"=>30,"isAnonymous"=>1,"addTime"=>$ndate]);
+
+         DB::table('answer')->insert(["qID"=>$qid,"answerUID"=>$uid,"answer"=>$content]);
+         return 1;
+    }
+
+}
+
+

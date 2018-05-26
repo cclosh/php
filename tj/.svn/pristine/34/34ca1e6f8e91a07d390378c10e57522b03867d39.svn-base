@@ -1,0 +1,95 @@
+<?php
+namespace  App\Http\Controllers\Api;
+use App\Http\DAL\AnswerDAL;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+
+class AnswerController extends Controller{
+
+    /*
+     * 回答问题的列表
+     */
+    public function getanswerList(Request $request)
+    {
+        $keyword = $request->get('keyword'); //关键词
+        $pageNum = empty($request->get('pageNum')) ? 1 : intval($request->get('pageNum')); //页码
+        $pageSize = empty($request->get('pageSize')) ? 20 : intval($request->get('pageSize'));//每条显示的条数
+
+        $data=AnswerDAL::getAnswerList($keyword,$pageNum,$pageSize);
+        $arr=[];
+        foreach ($data as $item){
+            $arr[]=[
+                'id'=>$item->id,
+                'qID'=>$item->qID,
+                'title'=>$item->title,
+                'userID'=>$item->userID,
+                'userName'=>$item->userName,
+                'isAnonymous'=>$item->isAnonymous,
+                'content'=>$item->content,
+                'viewCount'=>$item->view,
+                'userlikeCount'=>AnswerDAL::getZanCount($item->id),
+                'userIDlike'=>implode(',',AnswerDAL::getUserID($item->id)),
+                'ndate'=>$item->addTime==0 ?date('Y-m-d'):date('Y-m-d',$item->addTime),
+                'status'=>$item->status
+            ];
+        }
+        return json_encode(["status"=>1,"data"=>$arr,"totalPage"=>AnswerDAL::getCount($keyword,$pageSize)]);
+    }
+
+    /*
+     * 新增回复
+     */
+    public function getanswerAdd(Request $request){
+        $title=$request->get('title'); //问题标题
+        $userName=$request->get('userName'); //答主用户名
+        $content=$request->get('content'); //回复详情
+
+        AnswerDAL::getAdd($title,$userName,$content);
+        return json_encode(["status"=>1,"msg"=>"保存成功"]);
+    }
+
+
+    /*
+     * 批量审核回复信息
+     */
+    public function getAnswerAuditlist(Request $request)
+    {
+        $aid = $request->get('id', 0); //id
+        AnswerDAL::getAuditList($aid);
+        return json_encode(["status" => 1, "msg" => "审核成功"]);
+    }
+
+    /*
+     * 单个审核回复信息
+     */
+    public function getAnswerAudit(Request $request)
+    {
+        $aid = $request->get('id', 0);
+        $status = $request->get('status',1);  //审核状态
+        AnswerDAL::getfAudit($aid, $status);
+        return json_encode(["status" => 1, "msg" => "审核成功"]);
+    }
+
+    /*
+     * 拉黑回复内容
+     */
+    public function getBackAnswer(Request $request)
+    {
+        $id = $request->get('id', 0); //回复内容
+        AnswerDAL::getBackAnswer($id);
+        return json_encode(["status" => 1, "msg" => "保存成功"]);
+    }
+
+    /*
+     * 批量拉黑
+     */
+    public function getBackAnswerList(Request $request){
+        $id=$request->get('id'); //批量拉黑id
+
+        foreach ($id as $item){
+            AnswerDAL::getBackAnswer($item);
+        }
+        return json_encode(["status"=>1,"msg"=>"操作成功"]);
+    }
+
+}

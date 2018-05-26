@@ -1,0 +1,69 @@
+<?php
+namespace App\Http\Controllers\Api;
+use App\Http\DAL\BlackSubjectDAL;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+
+class BlackSubjectController extends Controller{
+
+
+    /*
+     * 内容拉黑名单
+     */
+    public function getBackSubjectList(Request $request){
+        $keyword=$request->get('keyword');
+        $pageNum = empty($request->get('pageNum')) ? 1 : intval($request->get('pageNum')); //页码数
+        $pageSize = empty($request->get('pageSize')) ? 20 : intval($request->get('pageSize'));//每页显示的数据
+
+        $arr = [];
+        $data = BlackSubjectDAL::getSubjectList($keyword, $pageNum, $pageSize);
+        foreach ($data as $item) {
+            if ($item->type == 0) {
+                $result = BlackSubjectDAL::getIdByAnswerlist($item->aid);
+                $arr[] = [
+                    'userID' => $result->userID,
+                    'userType' => $result->userType,
+                    'title' => "",
+                    'content' => $result->content,
+                    'ndate' => $result->addTime == 0 ? date('Y-m-d') : date('Y-m-d', $item->addTime),
+                    'backCount' => $result->backCount,
+                    'aid' => $item->aid,
+                    'type'=>$item->type,
+                    'qid'=>$item->qid
+                ];
+            } else {
+                $arr[] = [
+                    'userID' => $item->userID,
+                    'userType' => $item->userType,
+                    'title' => $item->title,
+                    'content' => $item->content,
+                    'ndate' => $item->addTime == 0 ? date('Y-m-d') : date('Y-m-d', $item->addTime),
+                    'backCount' => $item->backCount,
+                    'aid' => $item->aid,
+                    'type'=>$item->type,
+                    'qid'=>$item->qid
+                ];
+            }
+        }
+
+        return json_encode(["status"=>1,"data"=>$arr,"totalPage"=>BlackSubjectDAL::getCount()]);
+    }
+
+    /*
+     * 黝黑名单转黑名单接口
+     */
+    public function getAn_q_blackW(Request $request)
+    {
+        $qid = $request->get('qid'); //问题的id
+        $type = $request->get('type'); //内容回复类型
+        $aid = $request->get('aid'); //回答用户的标识符
+
+        if (intval($type) == 0) { //回复
+            BlackSubjectDAL::getAnswer_Update($qid, $aid, $type);
+        } else { //问题
+            BlackSubjectDAL::getQuest_Update($qid, $type);
+        }
+        return json_encode(["status" => 1, "msg" => "操作成功"]);
+    }
+
+}

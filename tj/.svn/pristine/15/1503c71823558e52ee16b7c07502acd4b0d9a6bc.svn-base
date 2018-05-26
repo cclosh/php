@@ -1,0 +1,50 @@
+<?php
+namespace App\Http\Controllers\Api;
+use App\Http\DAL\BackUserDAL;
+use App\Http\Controllers\Controller;
+use App\Http\DAL\dtlsystemDAL;
+use Illuminate\Http\Request;
+
+class BackUserController extends Controller{
+
+    /*
+     * 用户黑名单接口
+     */
+    public function getBackList(Request $request){
+        $pageNum = empty($request->get('pageNum')) ? 1 : intval($request->get('pageNum')); //页码数
+        $paseSize = empty($request->get('pageSize')) ? 20 : intval($request->get('pageSize')); //每页显示的数据
+        $keyword=$request->get('keyword');
+
+        $data=BackUserDAL::getBackUserList($keyword,$pageNum,$paseSize);
+        $arr=[];
+
+        foreach ($data as $item){
+          $arr[]=[
+              'id'=>$item->id,
+              'userName'=>$item->userName,
+              'nickName'=>$item->nickName,
+              'phone'=>$item->phone,
+              'email'=>$item->email,
+              'userType'=>$item->userType,
+              'isAnswerer'=>$item->isAnswerer,
+              'ndate'=>$item->ndate==0?date('Y-m-d'):date('Y-md',$item->ndate),
+              'backCount'=>$item->backCount
+          ];
+        }
+        return json_encode(["status"=>1,"data"=>$arr,"totalPage"=>BackUserDAL::getCount()]);
+    }
+    /*
+     * 黑名单用户转白名单用户
+     */
+    public function getWhiteList(Request $request){
+
+        $uid=$request->get('uid'); //用户id
+
+        BackUserDAL::getWhite($uid);
+        return json_encode(["status"=>1,"msg"=>"操作成功"]);
+
+    }
+
+
+
+}

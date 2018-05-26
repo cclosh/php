@@ -1,0 +1,102 @@
+<?php
+namespace App\Http\Controllers\Api;
+use App\Http\DAL\CompanyDAL;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+
+class  CompanyController extends Controller{
+
+
+    /*
+     * 企业提问列表
+     */
+    public function getcompanyList(Request $request){
+        $keyword=$request->get('keyword');
+        $pageNum = empty($request->get('pageNum')) ? 1 : intval($request->get('pageNum')); //页码
+        $pageSize = empty($request->get('pageSize')) ? 20 : intval($request->get('pageSize'));//每条显示的条数
+
+        $arr=[];
+
+        $data=CompanyDAL::getCompanyList($keyword,$pageNum,$pageSize);
+        foreach ($data as $item){
+            $result=CompanyDAL::getIsAnswer($item->id);
+            $answerName=""; //专家用户名
+            $ishuifu=0;  //是否回复
+            $islike=0;   //是否点赞
+            if($result){
+                $ishuifu=1;
+                $islike=CompanyDAL::getanswerLike($result->id,$result->aID);
+                $answerName=$result->aID.'-'.CompanyDAL::getExpert($result->aID);
+            }
+            $arr[] = [
+                'id' => $item->id, //问题id
+                'userID' => $item->userID,//企业用户ID
+                'userName' => $item->userName,  //企业用户
+                'title' => $item->title,//问题标题
+                'content' => $item->content, //问题详情
+                'ishuifu' => $ishuifu, //是否回复
+                'answerName' => $answerName, //回复问题专家id
+                'islike' => $islike,//是否点赞专家回复
+                'ndate' => $item->addTime == 0 ? date('Y-m-d') : date('Y-m-d', $item->addTime),
+                'isallot' => $item->isallot  //是否分配
+            ];
+
+        }
+        return json_encode(["status"=>1,"data"=>$arr]);
+    }
+
+    /*
+     * 新增企业问题
+     */
+    public function getcompanyAdd(Request $request){
+
+        $userName=$request->get('userName');//用户名
+        $title=$request->get('title'); //问题标题
+        $content=$request->get('content'); //问题描述
+        $ndate=$request->get('ndate');
+
+        CompanyDAL::getAdd($userName,$title,$content,$ndate);
+        return json_encode(["status"=>1,"msg"=>"保存成功"]);
+    }
+
+    /*
+     * 回复问题专家列表
+     */
+    public function getanswerList(){
+       $data=CompanyDAL::getAnswer_user();
+       $arr=[];
+       foreach ($data as $item){
+           $arr[]=[
+               'userID'=>$item->id,
+               'userName'=>$item->nickName!=""?$item->nickName:$item->realName
+           ];
+       }
+          return json_encode(["status"=>1,"data"=>$arr]);
+    }
+
+    /*
+     * 分配接口
+     */
+
+    public function getAnswerFenpei(Request $request)
+    {
+
+        $qid=$request->get('qid'); //问题id
+        $uid=$request->get('uid'); //专家id
+        $userName=$request->get('userName'); //专家名称
+
+        $model=[
+            'qID'=>$qid,
+            'uID'=>$uid,
+            'userName'=>$userName
+        ];
+       CompanyDAL::getinsertExpert($model);
+       return json_encode(["status"=>1,"msg"=>"保存成功"]);
+
+    }
+
+
+}
+
+
+

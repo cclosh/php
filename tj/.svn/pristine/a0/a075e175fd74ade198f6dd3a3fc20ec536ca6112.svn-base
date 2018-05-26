@@ -1,0 +1,40 @@
+<?php
+namespace App\Http\Controllers\Api;
+use App\Http\Controllers\Controller;
+use DB;
+use Illuminate\Http\Request;
+
+class LoginController extends Controller{
+
+    public function getLogin(Request $request){
+        $userName=$request->get('userName');
+        $password=$request->get('password');
+
+        $arr=[
+            "realName"=>$userName,
+            "password"=>md5($password),
+            "userType"=>6
+        ];
+
+        $data=DB::table('userinfo')->where($arr)->select('realName as username')->first();
+        if($data){
+            $_SESSION["userName"]=$data->username;  //用户名存入session
+            return json_encode(["status"=>1,"username"=>$data->username]);
+        }else{
+            return json_encode(["status"=>0,"msg"=>"账号或密码不正确"]);
+        }
+    }
+    /*
+     * 效验是否已经登录
+     */
+    public function getisLogin(){
+        if(empty($_SESSION["userName"])){
+            return json_encode(["status"=>-1,"msg"=>"未登录"]);
+        }
+
+        return json_encode(["status"=>1,"msg"=>"登录成功"]);
+    }
+
+
+}
+

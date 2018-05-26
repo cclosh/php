@@ -1,0 +1,175 @@
+<?php
+namespace App\Http\Controllers\Api;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use App\Http\DAL\UserListDAL;
+use Excel;
+
+class UserInfoController extends Controller{
+
+    /*
+     * 获取所有的用户信息
+     */
+    public function getUserList(Request $request){
+        $pageNum = empty($request->get('pageNum')) ? 1 : intval($request->get('pageNum')); //页码
+        $pageSize = empty($request->get('pageSize')) ? 20 : intval($request->get('pageSize'));//每条显示的条数
+        $keyword=$request->get('keyword');
+        $status=$request->get('status',0);
+        $data = UserListDAL::getUserList($keyword,$status,($pageNum - 1) * $pageSize, $pageSize);
+        $arr=[];
+        foreach ($data as $val){
+            $arr[]=[
+                'id'=>$val->id,
+                'userName'=>$val->userName,
+                'nickName'=>$val->nickName,
+                'phone'=>$val->phone,
+                'email'=>$val->email,
+                'userType'=>$val->userType,
+                'isAnswerer'=>$val->isAnswerer,
+                'status'=>$val->forbidden,
+                "isAudit"=>$val->isAudit,
+                'addTime'=>date('Y-m-d H:i:s',$val->registerTime),
+                'company'=>$val->company,
+                'job'=>$val->job,
+                'details'=>$val->details,
+                'remark'=>$val->remark,
+                'content'=>$val->content
+            ];
+        }
+        return json_encode(["status"=>1,"data"=>$arr,"totalPage"=>UserListDAL::getCount($keyword,$status)]);
+
+    }
+
+    /*
+     * 新增用户
+     */
+    public function getAdd(Request $request)
+    {
+        $id=$request->get('id',0);
+        $userName = $request->get('userName'); //用户名称
+        $nickName = $request->get('nickName'); //昵称
+        $phone = $request->get('phone'); //手机号码
+        $email = $request->get('email'); //邮箱
+        $userType = $request->get('userType', 0); //用户类型
+        $isAnswerer = $request->get('isAnswerer', 0);//是否是主答  0不是 1是主答 2 答题进行中
+        $status = $request->get('status', 0); //账号状态  0启用 1禁用
+        $ndate = $request->get('ndate'); //注册时间
+        $remark = $request->get('remark'); //备注
+        $company=$request->get('company'); //公司名称
+        $job=$request->get('job'); //职务
+        $details=$request->get('details'); //简介
+        $content=$request->get('content');//经历介绍
+
+        $model = [
+            'realName' => $userName,
+            'nickName' => $nickName,
+            'phone' => $phone,
+            'email' => $email,
+            'userType' => $userType,
+            'isAnswerer' => $isAnswerer,
+            'forbidden' => $status,
+            'registerTime' => strtotime($ndate),
+            'remark' => $remark,
+            'company'=>$company,
+            'job'=>$job,
+            'details'=>$details,
+            'content'=>$content,
+            'password'=>'e10adc3949ba59abbe56e057f20f883e',
+            'userID'=>md5(date('YmdHis'))
+        ];
+        if($id>0){
+          UserListDAL::getInsert($model,$id);
+        }else{
+          UserListDAL::getInsert($model,$id);
+        }
+        return json_encode(["status"=>1,"msg"=>"保存成功"]);
+    }
+
+    /*
+     * 删除接口(单个)
+     */
+    public function getDel(Request $request){
+        $id=$request->get('id',0);
+        UserListDAL::getDel($id);
+        return json_encode(["status"=>1,"msg"=>"删除成功"]);
+    }
+
+
+    /*
+     * 批量删除
+     */
+    public function getDelList(Request $request){
+        $id=$request->get('id');
+        UserListDAL::getAllDel($id);
+        return json_encode(["status"=>1,"msg"=>"删除成功"]);
+    }
+
+    /*
+     * 答主审核
+     */
+    public function getAudit(Request $request){
+        $id=$request->get('id',0); //用户id
+        $isAudit=$request->get('isAudit',0);
+        UserListDAL::getAudit($id,$isAudit);
+        return json_encode(["status"=>1,"msg"=>"操作成功"]);
+    }
+
+
+    /*
+     * 导出excel 表格
+     */
+    public function getExt(){
+        $cellData=[
+            ["用户ID","用户名","昵称","手机号","邮箱","用户类型","是否答主","账号状态","公司名","职务","注册时间","经历介绍","备注"],
+        ];
+
+        $data=UserListDAL::getUserList("",0,1,10000);
+
+        foreach ($data as $item){
+
+            if($item->userType==0){
+                $statusText="游客";
+            }elseif ($item->userType==1){
+                $statusText="个人用户";
+            }elseif ($item->userType==2){
+                $statusText="企业用户";
+            }elseif ($item->userType==3){
+                $statusText="个人答主";
+            }elseif ($item->userType==4){
+                $statusText="专业答主";
+            }elseif ($item->userType==5){
+                $statusText="管理员";
+            }else{
+                $statusText="超级管理员";
+            }
+            $cellData[]=[
+                $item->id,
+                $item->userName,
+                $item->nickName,
+                $item->phone,
+                $item->email,
+                $statusText,
+                $item->isAnswerer==0?"否":"是",
+                $item->forbidden==0?"启用":"禁用",
+                $item->company,
+                $item->job,
+                $item->registerTime==0?date('Y-m-d'):date('Y-m-d',$item->registerTime),
+                $item->content,
+                $item->remark
+            ];
+
+
+        }
+
+        Excel::create('用户信息',function($excel) use ($cellData){
+            $excel->sheet('score', function($sheet) use ($cellData){
+                $sheet->rows($cellData);
+            });
+        })->export('xls');
+    }
+
+
+
+}
+
+

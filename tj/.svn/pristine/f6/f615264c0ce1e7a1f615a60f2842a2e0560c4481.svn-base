@@ -1,0 +1,60 @@
+<?php
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Http\DAL\WordDAL;
+use Illuminate\Http\Request;
+
+class WordController extends Controller{
+
+    /*
+     * 新增敏感词
+     */
+    public function getAdd(Request $request){
+        $id=$request->get('id',0);
+        $title=$request->get('title');
+        $status=$request->get('status',0);
+        $arr=[
+            'title'=>$title,
+            'status'=>$status
+        ];
+        if(intval($id)>0){
+            WordDAL::getAdd($arr,$id);
+        }else{
+            WordDAL::getAdd($arr,$id);
+        }
+        return json_encode(["status"=>1,"msg"=>"保存成功"]);
+    }
+
+    /*
+     * 数据列表
+     */
+    public function getList(Request $request){
+        $keyword = $request->get('keyword');
+        $pageNum = empty($request->get('pageNum')) ? 1 : intval($request->get('pageNum'));
+        $pageSize = empty($request->get('pageSize')) ? 20 : intval($request->get('pageSize'));
+        $status = $request->get('status',2);
+
+
+        $data=WordDAL::getList($keyword,$pageNum,$pageSize,$status);
+
+        return  json_encode(["status"=>1,"data"=>$data,"totalPage"=>WordDAL::getCount()]);
+
+    }
+
+    /*
+     * 敏感词审核列表
+     */
+    public function getAuditWordList(Request $request){
+
+        $keyword = $request->get('keyword'); //关键词
+        $pageNum = empty($request->get('pageNum')) ? 1 : intval($request->get('pageNum'));//页码数
+        $pageSize = empty($request->get('pageSize')) ? 20 : intval($request->get('pageSize')); //每页显示的数据数
+        $status=$request->get('status');//
+
+        $data=WordDAL::getAuditWord($keyword,$pageNum,$pageSize,$status);
+        return json_encode(["status"=>1,"data"=>$data]);
+
+    }
+
+}

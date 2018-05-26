@@ -1,0 +1,70 @@
+<?php
+namespace App\Http\Controllers\Api;
+use App\Http\Controllers\Controller;
+use DB;
+use Illuminate\Http\Request;
+
+class LoginController extends Controller{
+
+    public function getLogin(Request $request){
+        $userName=$request->get('userName');
+        $password=$request->get('password');
+
+        $arr=[
+            "realName"=>$userName,
+            "password"=>md5($password),
+            "userType"=>6
+        ];
+
+        $data=DB::table('userinfo')->where($arr)->select('realName as username','id as userID','userType')->first();
+        if($data){
+            $_SESSION["userName"]=$data->username;  //用户名存入session
+            $_SESSION["userID"]=$data->userID;  //用户名id,
+
+            return json_encode(["status" => 1, "username" => $data->username, "role" =>intval($data->userType) ==6 ? 1 : 2]);
+        }else{
+            return json_encode(["status"=>0,"msg"=>"账号或密码不正确"]);
+        }
+    }
+    /*
+     * 效验是否已经登录
+     */
+    public function getisLogin(){
+        if(empty($_SESSION["userName"])){
+            return json_encode(["status"=>-1,"msg"=>"未登录"]);
+        }
+        return json_encode(["status"=>1]);
+    }
+
+    /*
+     * 修改密码
+     */
+
+    public function getModifypassword(Request $request){
+        $userName=$request->get('userName'); //用户名
+        $oldPass=$request->get('oldpass'); //旧密码
+        $npass=$request->get('npass');//新密码
+        $qpass=$request->get('confirmPass');//确认密码
+
+        if($npass!=$qpass){
+            return json_encode(["status"=>-3,"msg"=>"新密码和确认密码不匹配"]);
+        }
+
+        $data=DB::table('userinfo')->where('realName','=',$userName)
+            ->where('password','=',md5($oldPass))
+            ->whereIn('userType',[4,5,6])
+            ->select('realName','password')
+            ->first();
+
+        if ($data){
+           DB::table('userinfo')->where('realName','=',$userName)->whereIn('userType',[4,5,6])->update(["password"=>md5($npass)]);
+           return json_encode(["status"=>1,"msg"=>"修改成功"]);
+        }else{
+            return json_encode(["status"=>-3,"msg"=>"原密码不正确"]);
+        }
+
+    }
+
+
+}
+

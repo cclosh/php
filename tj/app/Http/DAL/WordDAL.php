@@ -1,0 +1,181 @@
+<?php
+
+namespace App\Http\DAL;
+
+use DB;
+
+class WordDAL extends DAL
+{
+
+    private static $table = "words";
+
+    protected static $table_name = 'words';
+
+
+    /*
+     * 新增关键词
+     */
+    public static function getAdd($model, $id)
+    {
+        if ($id > 0) {
+            return DB::table(static::$table)->where('id', $id)->update($model);
+        } else {
+            return DB::table(static::$table)->insert($model);
+        }
+
+    }
+
+    /*
+     * 关键词列表
+     */
+    public static function getList($keyword, $pageNum, $pageSize, $status)
+    {
+        return DB::table(static::$table)
+            ->where(function ($query) use ($keyword, $status) {
+                if (!empty($keyword)) {
+                    $query->where('title', 'like', "%$keyword%");
+                }
+                if ($status != 2) {
+                    $query->where('status', '=', $status);
+                }
+            })
+            ->select(
+                'id',
+                'title',
+                'status',
+                'acount'
+            )
+            ->skip(($pageNum - 1) * $pageSize)
+            ->take($pageSize)
+            ->get();
+    }
+
+    /*
+     * 总数
+     */
+    public static function getCount()
+    {
+        $data = DB::table(static::$table)
+            ->select('id')
+            ->get();
+        return count($data);
+    }
+
+    ////////////////////////////////////////敏感词审核///////////////////////////////////
+
+    /*敏感词的列表
+     * ming  */
+    public static function getAuditWord($keyword, $pageNum, $pageSize, $status)
+    {
+
+        return DB::table('audit_word')
+            ->join('userinfo', 'userinfo.id', '=', 'audit_word.userID')
+            ->where(function ($query) use ($keyword, $status) {
+                if (!empty($keyword)) {
+                    $query->where(DB::raw('CONCAT(IFNULL(audit_word.title,""),"||",IFNULL(audit_word.content,""),
+                   "||",IFNULL(userinfo.realName,""),"||",IFNULL(userinfo.nickName,""),"||",IFNULL(userinfo.phone,""),IFNULL(userinfo.email,""))'), 'like', "%$keyword%");
+                }
+                if ($status == 0) {
+                    $query->where('audit_word.type', '=', 0);
+                } elseif ($status == 1) {
+                    $query->where('audit_word.type', '=', 1);
+                } elseif ($status == 2) {
+                    $query->where('userinfo.userType', '=', 2);
+                } elseif ($status == 3) {
+                    $query->where('userinfo.userType', '=', 1);
+                } elseif ($status == 4) {
+                    $query->where('userinfo.isAnswerer', '=', 1);
+                } else {
+
+                }
+            })
+            ->select(
+                'audit_word.id',
+                'audit_word.type',
+                'audit_word.title',
+                'audit_word.content',
+                'userinfo.realName as userName',
+                'userinfo.nickName',
+                'userinfo.phone',
+                'userinfo.email',
+                'userinfo.userType',
+                'userinfo.isAnswerer',
+                'userinfo.backCount',
+                'userinfo.forbidden',
+                'audit_word.addTime',
+                'audit_word.status',
+                'audit_word.rid'
+            )
+            ->skip(($pageNum - 1) * $pageSize)
+            ->take($pageSize)
+            ->get();
+
+    }
+
+    /*
+     * 获取总数
+     */
+    public static function getmCount()
+    {
+        $data = DB::table('audit_word')
+            ->select(
+                'id'
+            )
+            ->get();
+        return ceil(count($data));
+    }
+
+
+    /*
+     * 审核
+     */
+    public static function getmAudt($id, $status)
+    {
+        if ($status == 1) {
+            $info = DB::table('audit_word')->where('id', $id)->first();
+            QuestionDAL::tableUpdate(['id' => $info->rid], ['isblack' => 0]);
+        }
+
+        return DB::table('audit_word')->where('id', $id)->update(["status" => $status]);
+    }
+
+    /*
+     * 问题进入黑名单
+     */
+    public static function getQAddblack($qid)
+    {
+        DB::table('black_question')->insert(["qid" => $qid, "type" => 1]);
+        DB::table('audit_word')->where(["rid" => $qid, "type" => 1])->update(["status" => 0]);
+        return DB::update("update question set isblack=1,backCount=backCount+1 where id=?", [$qid]);
+    }
+
+    /*
+     * 回复进入黑名单
+     */
+    public static function getAnswerAddblack($aid)
+    {
+        $data = DB::table('answer')->where('id', $aid)->select('qID')->first();
+        DB:;
+        table('black_question')->insert(["qid" => $data->qID, "type" => 0, "aid" => $aid]);
+        DB::table('audit_word')->where(["rid" => $aid, "type" => 0])->update(["status" => 0]);
+        return BD::update("update answer set isblack=1,backCount=backCount+1 WHERE  id =?", [$aid]);
+    }
+
+
+    public static function addCount($id, $add)
+    {
+        return DB::table(static::$table)->where('id', $id)->increment('acount', $add);
+    }
+
+}
+
+
+
+
+
+
+
+
+
+
+

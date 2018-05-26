@@ -1,0 +1,16 @@
+2018-05-15 15:10:48 pid:5283 Workerman[index.php] start in DEBUG mode
+2018-05-15 15:13:19 pid:5365 Workerman[index.php] start in DEBUG mode
+2018-05-15 15:13:38 pid:5380 Workerman[index.php] start in DEBUG mode
+2018-05-15 15:20:54 pid:5502 Workerman[index.php] start in DEBUG mode
+2018-05-15 15:23:18 pid:5586 Workerman[index.php] start in DEBUG mode
+2018-05-15 15:23:25 pid:5589 Workerman[index.php] start in DEBUG mode
+2018-05-15 15:30:13 pid:5948 Workerman[index.php] start in DEBUG mode
+2018-05-15 15:30:14 pid:5956 Workerman[index.php] start in DEBUG mode
+2018-05-15 15:30:36 pid:6033 Workerman[index.php] start in DEBUG mode
+2018-05-15 15:32:03 pid:7519 Workerman[index.php] start in DEBUG mode
+2018-05-15 15:35:43 pid:7519 Workerman[index.php] stopping ...
+2018-05-15 15:35:43 pid:7519 worker[none:7528] exit with status 5247
+2018-05-15 15:39:13 pid:9432 Workerman[index.php] start in DEBUG mode
+2018-05-15 15:46:37 pid:9432 Workerman[index.php] stopping ...
+2018-05-15 15:46:37 pid:9432 worker[none:9437] exit with status 5247
+2018-05-15 15:46:37 pid:9432 Workerman[index.php] has been stopped

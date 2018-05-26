@@ -1,0 +1,116 @@
+<?php
+
+namespace App\Http\DAL;
+
+use DB;
+
+class WordDAL extends DAL
+{
+
+    private static $table = "words";
+    protected static $table_name = 'words';
+
+
+    /*
+     * 新增关键词
+     */
+    public static function getAdd($model, $id)
+    {
+        if ($id > 0) {
+            return DB::table(static::$table)->where('id', $id)->update($model);
+        } else {
+            return DB::table(static::$table)->insert($model);
+        }
+
+    }
+
+    /*
+     * 关键词列表
+     */
+    public static function getList($keyword, $pageNum, $pageSize, $status)
+    {
+        return DB::table(static::$table)
+            ->where(function ($query) use ($keyword, $status) {
+                if (!empty($keyword)) {
+                    $query->where('title', 'like', "%$keyword%");
+                }
+                if ($status != 2) {
+                    $query->where('status', '=', $status);
+                }
+            })
+            ->select(
+                'id',
+                'title',
+                'status',
+                'acount'
+            )
+            ->skip(($pageNum - 1) * $pageSize)
+            ->take($pageSize)
+            ->get();
+    }
+
+    /*
+     * 总数
+     */
+    public static function getCount()
+    {
+        $data = DB::table(static::$table)->get();
+        return count($data);
+    }
+
+    ////////////////////////////////////////敏感词审核///////////////////////////////////
+
+    /*敏感词的列表
+     * ming  */
+    public static function getAuditWord($keyword, $pageNum, $pageSize, $status)
+    {
+
+        return DB::table('audit_word')
+            ->join('userinfo', 'userinfo.id', '=', 'audit_word.userID')
+            ->where(function ($query) use ($keyword, $status) {
+//                if(!empty($keyword)){
+//
+//                }
+//                if($status==1){
+//
+//                }
+            })
+            ->select(
+                'audit_word.id',
+                'audit_word.type',
+                'audit_word.title',
+                'audit_word.content',
+                'userinfo.realName',
+                'userinfo.nickName',
+                'userinfo.phone',
+                'userinfo.email',
+                'userinfo.userType',
+                'userinfo.isAnswerer',
+                'userinfo.backCount',
+                'userinfo.forbidden',
+                'audit_word.addTime'
+            )
+            ->skip(($pageNum - 1) * $pageSize)
+            ->take($pageSize)
+            ->get();
+
+    }
+
+
+    public static function addCount($id, $add)
+    {
+        return DB::table(static::$table)->where('id', $id)->increment('acount', $add);
+    }
+
+}
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,120 @@
+<?php
+namespace App\Http\Controllers\Api;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use App\Http\DAL\UserListDAL;
+
+class UserInfoController extends Controller{
+
+    /*
+     * 获取所有的用户信息
+     */
+    public function getUserList(Request $request){
+        $pageNum = empty($request->get('pageNum')) ? 1 : intval($request->get('pageNum')); //页码
+        $pageSize = empty($request->get('pageSize')) ? 20 : intval($request->get('pageSize'));//每条显示的条数
+        $keyword=$request->get('keyword');
+        $pageSize = $pageNum > 1 ? ($pageNum - 1) * $pageSize : 20;
+        $data = UserListDAL::getUserList($keyword, $pageNum, $pageSize);
+        $arr=[];
+        foreach ($data as $val){
+            $arr[]=[
+                'id'=>$val->id,
+                'userName'=>$val->userName,
+                'nickName'=>$val->nickName,
+                'phone'=>$val->phone,
+                'email'=>$val->email,
+                'UserType'=>$val->userType,
+                'isAnswerer'=>$val->isAnswerer,
+                'status'=>$val->forbidden,
+                "isAudit"=>$val->isAudit,
+                'addTime'=>date('Y-m-d H:i:s',$val->registerTime),
+                'company'=>$val->company,
+                'job'=>$val->job,
+                'details'=>$val->details,
+                'remark'=>$val->remark,
+                'content'=>$val->content
+            ];
+        }
+
+        return json_encode(["status"=>1,"data"=>$arr]);
+
+    }
+
+    /*
+     * 新增用户
+     */
+    public function getAdd(Request $request)
+    {
+        $id=$request->get('id',0);
+        $userName = $request->get('userName'); //用户名称
+        $nickName = $request->get('nickName'); //昵称
+        $phone = $request->get('phone'); //手机号码
+        $email = $request->get('email'); //邮箱
+        $userType = $request->get('userType', 0); //用户类型
+        $isAnswerer = $request->get('isAnswerer', 0);//是否是主答  0不是 1是主答 2 答题进行中
+        $status = $request->get('status', 0); //账号状态  0启用 1禁用
+        $ndate = $request->get('ndate'); //注册时间
+        $remark = $request->get('remark'); //备注
+        $company=$request->get('company'); //公司名称
+        $job=$request->get('job'); //职务
+        $details=$request->get('details'); //简介
+        $content=$request->get('content');//经历介绍
+
+        $model = [
+            'realName' => $userName,
+            'nickName' => $nickName,
+            'phone' => $phone,
+            'email' => $email,
+            'userType' => $userType,
+            'isAnswerer' => $isAnswerer,
+            'forbidden' => $status,
+            'registerTime' => strtotime($ndate),
+            'remark' => $remark,
+            'company'=>$company,
+            'job'=>$job,
+            'details'=>$details,
+            'content'=>$content,
+            'password'=>'e10adc3949ba59abbe56e057f20f883e',
+            'userID'=>md5(date('YmdHis'))
+        ];
+        if($id>0){
+          UserListDAL::getInsert($model,$id);
+        }else{
+          UserListDAL::getInsert($model,$id);
+        }
+        return json_encode(["status"=>1,"msg"=>"保存成功"]);
+    }
+
+    /*
+     * 删除接口(单个)
+     */
+    public function getDel(Request $request){
+        $id=$request->get('id',0);
+        UserListDAL::getDel($id);
+        return json_encode(["status"=>1,"msg"=>"删除成功"]);
+    }
+
+
+    /*
+     * 批量删除
+     */
+    public function getDelList(Request $request){
+        $id=$request->get('id');
+        UserListDAL::getAllDel($id);
+        return json_encode(["status"=>1,"msg"=>"删除成功"]);
+    }
+
+    /*
+     * 答主审核
+     */
+    public function getAudit(Request $request){
+        $id=$request->get('id',0); //用户id
+        $isAudit=$request->get('isAudit',0);
+        UserListDAL::getAudit($id,$isAudit);
+        return json_encode(["status"=>1,"msg"=>"操作成功"]);
+    }
+
+
+}
+
+

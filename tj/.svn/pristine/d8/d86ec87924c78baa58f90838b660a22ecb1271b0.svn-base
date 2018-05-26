@@ -1,0 +1,28 @@
+<?php
+namespace App\Http\Controllers\Api;
+use App\Http\Controllers\Controller;
+use DB;
+use Illuminate\Http\Request;
+
+class LoginController extends Controller{
+
+    public function getLogin(Request $request){
+        $userName=$request->get('userName');
+        $password=$request->get('password');
+
+        $arr=[
+            "realName"=>$userName,
+            "password"=>md5($password),
+            "userType"=>6
+        ];
+
+        $data=DB::table('userinfo')->where($arr)->select('realName as username')->first();
+        if($data){
+            return json_encode(["status"=>1,"username"=>$data->username]);
+        }else{
+            return json_encode(["status"=>0,"msg"=>"账号或密码不正确"]);
+        }
+    }
+
+}
+

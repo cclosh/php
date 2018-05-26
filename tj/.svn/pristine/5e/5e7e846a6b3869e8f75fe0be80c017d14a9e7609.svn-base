@@ -1,0 +1,65 @@
+<?php
+namespace App\Http\Controllers\Api;
+use App\Http\DAL\MajorDAL;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+
+class MajorController extends Controller{
+
+    /*
+     * 专业答主的列表
+     */
+    public function getMajorList(Request $request){
+        $keyword=$request->get('keyword');
+        $pageNum = empty($request->get('pageNum')) ? 1 : intval($request->get('pageNum')); //页码
+        $pageSize = empty($request->get('pageSize')) ? 20 : intval($request->get('pageSize'));//每条显示的条数
+
+        $data=MajorDAL::getMajorList($keyword,$pageNum,$pageSize);
+        $arr=[];
+        foreach ($data as $item){
+            $arr[]=[
+                'id'=>$item->id,
+                'userID'=>$item->userID,
+                'userName'=>$item->userName,
+                'qyID'=>$item->createUID,
+                'qID'=>$item->qID,
+                'title'=>$item->title,
+                'content'=>$item->content,
+                'islike'=>MajorDAL::getlike($item->id),
+                'ndate'=>$item->addTime==0?date('Y-m-d'):date('Y-m-d',$item->addTime),
+                'status'=>$item->status
+            ];
+        }
+        return json_encode(["status"=>1,"data"=>$arr]);
+
+    }
+
+    /*
+     * 专业答主
+     */
+    public function getMajorAdd(Request $request){
+
+        $userName=$request->get('userName');
+        $title=$request->get('title'); //问题标题
+        $content=$request->get('content');
+        $ndate=$request->get('ndate');
+
+        MajorDAL::getAdd($userName,$title,$content,$ndate);
+        return json_encode(["status"=>1,"保存成功"]);
+
+    }
+
+    /*
+     * 批量删除
+     */
+    public function getDelList(Request $request){
+        $id=$request->get('id',0);  //回复id
+
+        MajorDAL::getDel($id);
+        return json_encode(["status"=>1,"msg"=>"删除成功"]);
+
+
+    }
+
+
+}

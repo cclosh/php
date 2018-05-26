@@ -1,0 +1,57 @@
+* {
+    padding: 0px;
+    margin: 0px;
+}
+
+.main {
+    width: 748px;
+    height: 546px;
+    border: 1px solid #5290FA;
+    margin: 0 auto;
+    margin-top: 100px;
+}
+
+.top {
+    height: 45px;
+    background-color: #EFF4FC;
+}
+
+.logo{
+    display: inline-block;
+    width: 100px;
+    height: 25px;
+    background: url("../image/logo.png");
+}
+
+.top input {
+    margin-top: -15px;
+    width: 160px;
+    height: 25px;
+    display: inline-block;
+}
+
+.menu{
+    display: inline-block;
+    cursor: pointer;
+    width: 22px;
+    height: 22px;
+    background-position-x: 0px;
+}
+
+.top a:hover {
+    background-position-x:-22px;
+}
+
+.top a:active {
+    background-position-x:-44px;
+}
+
+.game {
+    background: url("../image/game.png");
+}
+
+
+.close {
+    background: url("../image/close.png");
+}
+

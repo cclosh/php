@@ -1,0 +1,125 @@
+<?php
+
+//Route::get('/', function () {
+//    return '<center>int.answer.updrv.com</center>';
+//});
+Route::get('/', "Web\IndexController@index");
+Route::post('/api/v1', 'Api\CmdControllerV1@cmd');
+
+////////////////////////////////////////////用户管理接口//////////////////////////////////////////////////
+
+
+Route::post('/json/userList', 'Api\UserInfoController@getUserList');//获取用户列表
+
+Route::post('/json/add', 'Api\UserInfoController@getAdd');//新增用户
+
+Route::post('/json/del', 'Api\UserInfoController@getDel');//删除用户信息
+
+Route::post('/json/user/dellist', 'Api\UserInfoController@getDelList');//批量删除用户信息
+
+Route::post('/json/isAudit', 'Api\UserInfoController@getAudit');//答主审核
+
+Route::get('/json/excel', 'Api\UserInfoController@getExt');//导出Excel表格接口
+
+//////////////////////////////////////////////权限管理接口////////////////////////////////////////////////
+Route::post('/json/powerList', 'Api\PowerController@getPowerList');//权限管理列表
+
+Route::post('/json/power/add', 'Api\PowerController@getAdd');//新增权限信息
+
+Route::post('/json/power/del', 'Api\PowerController@getDel');//删除信息
+
+Route::post('/json/power/dellist', 'Api\PowerController@getDelList');//批量删除信息
+
+///////////////////////////////////////////角色管理接口////////////////////////////////////////////////
+Route::post('/json/role/list', 'Api\RoleController@getRoleList');//角色列表
+
+Route::post('/json/role/add', 'Api\RoleController@getAdd');//编辑角色列表
+
+Route::post('/json/role/del', 'Api\RoleController@getDel');//删除
+
+Route::post('/json/role/power', 'Api\RoleController@getPower');//获取所有权限
+
+//////////////////////////////////////////////////登录接口////////////////////////////////////////////////////
+Route::post('/json/login', 'Api\LoginController@getLogin');//登录信息
+
+Route::post('/json/islogin', 'Api\LoginController@getisLogin');//效验是否已经登录
+
+///////////////////////////////////////////////////////////////全部问题接口/////////////////////////////////////////////////////
+Route::post('/json/questList', 'Api\PquestionController@getquestList');//个人问题列表
+
+Route::post('/json/questAdd', 'Api\PquestionController@getAddquest');//新增问题
+
+Route::post('/json/questAudit', 'Api\PquestionController@getAudit');//审核问题
+
+Route::post('/json/questauditList', 'Api\PquestionController@getAuditlist');//批量审核拒绝
+
+Route::post('/json/backquest', 'Api\PquestionController@getBackquest');//单个拉黑问题
+
+Route::post('/json/backquestList', 'Api\PquestionController@getbackquestList');//批量拉黑问题
+
+//////////////////////////////////////////////////////////////全部答复/////////////////////////////////////////////////////////////////
+
+Route::post('/json/answerAdd', 'Api\AnswerController@getanswerAdd');//新增回复
+
+Route::post('/json/answerList', 'Api\AnswerController@getanswerList');//个人回答的列表
+
+Route::post('/json/answerAuditlist', 'Api\AnswerController@getAnswerAuditlist');//批量审核回复
+
+Route::post('/json/answerAudit', 'Api\AnswerController@getAnswerAudit');//单个审核回复
+
+Route::post('/json/backanswer', 'Api\AnswerController@getBackAnswer');//单个拉黑回复
+
+Route::post('/json/backanswerList', 'Api\AnswerController@getBackAnswerList');//批量拉黑回复
+
+//////////////////////////////////////////////企业提问//////////////////////////////////////////////////
+
+Route::post('/json/companyAdd', 'Api\CompanyController@getcompanyAdd');//新增提问问题
+
+Route::post('/json/companyList', 'Api\CompanyController@getcompanyList');//企业提问列表
+
+Route::post('/json/company/answerList', 'Api\CompanyController@getanswerList');//回复问题专家的id
+
+Route::post('/json/company/answerfenpei', 'Api\CompanyController@getAnswerFenpei');//分配接口
+
+
+////////////////////////////////////////////////专业答主接口///////////////////////////////////////////////////
+
+Route::post('/json/majorList', 'Api\MajorController@getMajorList');//专业答主列表
+
+Route::post('/json/majorAdd', 'Api\MajorController@getMajorAdd');//新增专业答主
+
+Route::post('/json/dellist', 'Api\MajorController@getDelList');//批量删除专业答主信息
+
+
+///////////////////////////////////////////////////黑名单////////////////////////////////////////////////////////
+
+Route::post('/json/backuserList', 'Api\BackUserController@getBackList');//黑名单用户
+
+Route::post('/json/whiteuserList', 'Api\BackUserController@getWhiteList');//黑名单用户转白名单用户
+
+
+Route::post('/json/backsubjectList', 'Api\BlackSubjectController@getBackSubjectList');//内容黑名单列表
+
+Route::post('/json/an_q_blackW', 'Api\BlackSubjectController@getAn_q_blackW');//内容黑名单转入白名单
+
+///////////////////////////////////////////////敏感词//////////////////////////////////////////////////////////////
+
+Route::post('/json/addword', 'Api\WordController@getAdd');//敏感词
+
+Route::post('/json/getlist', 'Api\WordController@getList');//敏感词列表
+
+Route::post('/json/auditwordList', 'Api\WordController@getAuditWordList');//敏感词审核列表
+
+Route::post('/json/maudit', 'Api\WordController@getmAudit');//敏感词审核接口 （通过或拒绝）
+
+Route::post('/json/maddblack', 'Api\WordController@getmAddBlack');  //敏感词进入黑名单接口
+
+//我的任务清单
+Route::post('/json/modifypassword', 'Api\LoginController@getModifypassword');//修改密码接口
+
+Route::post('/json/tasklist', 'Api\TaskController@getTasklist');//获取清单列表
+
+
+
+
+

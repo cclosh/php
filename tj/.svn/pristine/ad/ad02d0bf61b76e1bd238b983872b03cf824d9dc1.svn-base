@@ -1,0 +1,140 @@
+<?php
+
+namespace App\Http\DAL;
+
+use DB;
+
+class DAL
+{
+
+    protected static $table_name;
+
+
+    public static function pageHandel($list)
+    {
+        $list = json_decode(json_encode($list));
+
+        unset($list->next_page_url);
+        unset($list->prev_page_url);
+        unset($list->from);
+        unset($list->to);
+
+        return $list;
+    }
+
+    /**
+     * 返回table操作对象
+     * @return mixed
+     */
+    public static function tableDB()
+    {
+        return DB::table(static::$table_name);
+    }
+
+    /**
+     * 生成关联数组
+     * @param $keyName 键值名称
+     * @param $itemName 值名称
+     * @return array 返回对应的关联数组
+     */
+    public static function keyArr($keyName)
+    {
+        $retData = [];
+        $request = self::tableDB()->get();
+        foreach ($request as $item) {
+            $retData[$item->$keyName] = $item;
+        }
+        return $retData;
+    }
+
+    /**
+     * 根据条件，查询列表记录
+     * @param type array $where 带有字符串键名的数组
+     * @return array
+     */
+    public static function tableGet($where, $select = [])
+    {
+        if ($select) {
+            return self::tableDB()->select($select)->where($where)->get();
+        } else {
+
+            return self::tableDB()->where($where)->get();
+        }
+    }
+
+    /**
+     * 根据条件，查询记录
+     * @param type array   $where
+     * @return int 1成功，0失败
+     */
+    public static function tableFirst($where, $select = [])
+    {
+        if ($select) {
+            return self::tableDB()->select($select)->where($where)->first();
+        } else {
+            return self::tableDB()->where($where)->first();
+        }
+    }
+
+    /**
+     * 保存添加的数据，返回影响数，出错返回空或return $exc
+     * @param type array   $sub_value sub_value保存值，带有字符串键名的数组
+     * @return int 1成功，0失败
+     */
+    public static function tableInsert($sub_value)
+    {
+        $request = self::tableDB()->insert($sub_value);
+        if ($request) {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+
+    /**
+     * 保存添加的数据，返回添加的id值，出错返回0
+     * @param type array   $sub_value sub_value保存值，带有字符串键名的数组
+     * @return int 添加列的id，出错返回错误信息
+     */
+    public static function tableInsertGetId($sub_value)
+    {
+        $request = self::tableDB()->insertGetId($sub_value);
+        if (is_numeric($request)) {
+            return $request;
+        } else {
+            return 0;
+        }
+    }
+
+    /**
+     * 保存修改信息，根据wehere条件和要修改的值，修改表
+     * @param type array   $sql_where sql_where条件，带有字符串键名的数组
+     * @param type array   $sub_value sub_value保存值，带有字符串键名的数组
+     * @return int 1成功，0失败
+     */
+    public static function tableUpdate($sql_where, $sub_value)
+    {
+        $request = self::tableDB()->where($sql_where)->update($sub_value);
+        if (is_numeric($request)) {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+
+    /**
+     * 删除数据，0或1
+     * @param type array   $sql_where sql_where条件，带有字符串键名的数组
+     * @return int 1成功，0失败
+     */
+    public static function tableDelete($sql_where)
+    {
+        $request = self::tableDB()->where($sql_where)->delete();
+        if (is_numeric($request)) {
+            return 1;
+        } else {
+            return 0;
+        }
+    }
+
+}

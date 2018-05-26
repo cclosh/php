@@ -1,0 +1,13 @@
+<?php
+
+namespace App\Http\DAL;
+
+use DB;
+
+class UserInfoDAL extends DAL
+{
+
+    protected static $table_name = 'userInfo';
+
+
+}

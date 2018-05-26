@@ -1,0 +1,108 @@
+<?php
+namespace App\Http\Controllers\Api;
+use App\Http\DAL\PquestionDAL;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+
+class PquestionController extends Controller{
+
+    /*
+     * 个人问题列表
+     */
+    public function getquestList(Request $request){
+
+        $pageNum = empty($request->get('pageNum')) ? 1 : intval($request->get('pageNum')); //页码
+        $pageSize = empty($request->get('pageSize')) ? 20 : intval($request->get('pageSize'));//每条显示的条数
+        $keyword = $request->get('keyword'); //关键词
+        $status = empty($request->get('status')) ? 2 : $request->get('status'); //问题状态  0 驳回 1 通过
+
+        $data=PquestionDAL::getList($pageNum,$pageSize,$keyword,$status);
+        $arr=[];
+
+        foreach ($data as $item){
+           $arr[]=[
+               'id'=>$item->id,
+               'userID'=>$item->userID,
+               'userName'=>$item->userName,
+               'isAnonymous'=>$item->isAnonymous,
+               'title'=>$item->title,
+               'content'=>$item->content,
+               'viewCount'=>$item->view,
+               'followCount'=>$item->follow,
+               'answerCount'=>$item->answer,
+               'answerID'=>implode(',',PquestionDAL::getAnswer($item->userID)),
+               'followID'=>implode(',',PquestionDAL::getUser_question($item->userID)),
+               'ndate'=>$item->addTime==0?date('Y-m-d'):date('Y-m-d',$item->addTime),
+               'status'=>$item->status
+           ];
+        }
+        return json_encode(["status"=>1,"data"=>$arr]);
+    }
+
+    /*
+     * 新增问题
+     */
+    public function getAddquest(Request $request)
+    {
+        $userName = $request->get('userName'); //用户名称
+        $isAnonymous = $request->get('isAnonymous',0); //是否匿名 0 匿名 1 不匿名
+        $title = $request->get('title');  //问题标题
+        $content = $request->get('content');  //问题描述
+        $ndate = $request->get('ndate'); //时间
+
+        $model = [
+            'title' => $title,
+            'content' => $content,
+            'createUID' => PquestionDAL::AddUser($userName),
+            'isAnonymous' => $isAnonymous,
+            'addTime' =>strtotime($ndate)
+        ];
+
+         PquestionDAL::getAdd($model);
+        return json_encode(["status" => 1, "msg" => "保存成功"]);
+    }
+
+    /*
+     * 审核问题(单条)
+     */
+    public function getAudit(Request $request){
+        $id=$request->get('id',0); //id
+        $status=$request->get('status'); //审核状态  0 驳回 1通过
+
+        PquestionDAL::getStatus($id,$status); //审批
+        return json_encode(["status"=>1,"msg"=>"审核成功"]);
+
+    }
+
+    /*
+     * 批量审核
+     */
+    public function getAuditlist(Request $request){
+        $id=$request->get('id',0);
+        PquestionDAL::getStausList($id);
+        return json_encode(["status"=>1,"msg"=>"审核成功"]);
+    }
+    /*
+     * 单个拉黑问题
+     */
+    public function getBackquest(Request $request){
+        $id=$request->get('id',0); //问题id
+        PquestionDAL::getBack($id);  //内容开始拉黑
+        return json_encode(["status"=>1,"msg"=>"保存成功"]);
+    }
+    /*
+     * 批量拉黑
+     */
+    public function getbackquestList(Request $request){
+        $id=$request->get('id',0); //数组
+
+//
+        foreach ($id as $item){
+           // PquestionDAL::getBackList($item);
+            PquestionDAL::getBack($item);  //内容开始拉黑
+        }
+        return json_encode(["status"=>1,"msg"=>"保存成功"]);
+    }
+
+
+}

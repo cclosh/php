@@ -1,0 +1,76 @@
+<?php
+namespace App\Http\Controllers\Api;
+use App\Http\DAL\RoleDAL;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+
+class RoleController extends Controller{
+
+
+    /*
+     * 获取角色列表
+     */
+    public function getRoleList(Request $request)
+    {
+        $pageNum = empty($request->get('pageNum')) ? 1 : intval($request->get('pageNum')); //页码
+        $pageSize = empty($request->get('pageSize')) ? 20 : intval($request->get('pageSize'));//每条显示的条数
+        //$pageSize = ($pageNum - 1) * $pageSize; //每页显示数据
+        $data = RoleDAL::getroleList($pageNum,$pageSize);
+        $arr = [];
+        foreach ($data as $item) {
+            $arr[] = [
+                'id' => $item->id,
+                'title' => $item->title,
+                'introduce'=>$item->introduce,
+                'remark' => $item->remark,
+                'status' => $item->status,
+                'pid' => $item->pid,
+                'ndate' => date('Y-m-d', $item->ndate)
+            ];
+        }
+        return json_encode(["status" => 1, "data" => $arr,"totalPage"=>RoleDAL::gteCount()]);
+    }
+
+    /*
+     * 编辑
+     */
+    public function getAdd(Request $request){
+        $id=$request->get('id',0);
+        $title=$request->get('title'); //标题
+        $remark=$request->get('remark'); //编辑
+        $introduce=$request->get('introduce'); //角色介绍
+        $pid=$request->get('pid');  //
+        $ndate=$request->get('ndate');
+        $arr=[
+            'title'=>$title,
+            'remark'=>$remark,
+            'introduce'=>$introduce,
+            'pid'=>implode(',',$pid),
+            'ndate'=>strtotime($ndate)
+        ];
+
+        RoleDAL::getAdd($arr,$id);
+        return json_encode(["status"=>1,"msg"=>"保存成功"]);
+    }
+
+    /*
+     * 删除方法
+     */
+    public function getDel(Request $request)
+    {
+        $id = $request->get('id', 0);
+        RoleDAL::getDel($id);
+        return json_encode(["status" => 1, "msg" => "删除成功"]);
+    }
+
+    /*
+     * 获取所有权限
+     */
+    public function getPower(){
+      $data=RoleDAL::getpowerList();
+      return json_encode(["status"=>1,"data"=>$data]);
+    }
+
+}
+
+

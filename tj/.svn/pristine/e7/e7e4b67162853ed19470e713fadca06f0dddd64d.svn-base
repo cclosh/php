@@ -1,0 +1,44 @@
+<?php
+namespace App\Http\Controllers\Api;
+use App\Http\DAL\TaskDAL;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+
+class TaskController extends Controller{
+
+
+    /*
+     * 获取清单列表
+     */
+    public function getTasklist(Request $request)
+    {
+
+        $userID = empty($_SESSION["userID"]) ? 0 : $_SESSION['userID'];  //登录用户的id
+//        $userID = $request->get('userID');  //登录用户的id
+        $keyword = $request->get('keyword'); //获取关键字
+        $pageNum = empty($request->get('pageNum')) ? 1 : $request->get('pageNum'); //每页显示的数据
+        $pageSize = empty($request->get('pageSize')) ? 20 : $request->get('pageSize'); //每页显示的数据
+
+        $data = TaskDAL::getTaskList($keyword, $userID, $pageNum, $pageSize);  //数据列表
+
+
+        $arr = [];
+        foreach ($data as $item) {
+            $Answerlist = TaskDAL::getAnswerList($userID, $item->qid);
+            $arr[] = [
+                'id' => $item->id,
+                'qid' => $item->qid,
+                'title' => $item->title,
+                'rescontent' => $item->content,
+                'ishuifu' => empty($Answerlist) ? 0 : 1,
+                'ndate' => empty($Answerlist) ? "-" : date('Y-m-d', $Answerlist->ndate),
+                'ulike' => empty($Answerlist) ? "-" : (empty(TaskDAL::getUserLike($userID, $Answerlist->id)) ? "-" : "通过"),
+                'status' => empty($Answerlist) ? "-" : "通过",
+                'userID' => TaskDAL::getMD5UserID($item->uID),
+                'content' => empty($Answerlist) ? "" : $Answerlist->acontent
+            ];
+        }
+        return json_encode(["status" => 1, "data" => $arr,"totalPage"=>TaskDAL::getCount($keyword,$userID)]);
+    }
+
+}

@@ -1,0 +1,22 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Http\Controllers\Controller;
+
+class ApiBaseController extends Controller
+{
+
+    public function jsonBuild($type, $dataOrMsg = '')
+    {
+        $json = [];
+        $json['status'] = $type;
+        if ($type > 0 && !empty($dataOrMsg) || $dataOrMsg === 0) {
+            $json['data'] = $dataOrMsg;
+        }
+        if ($type <= 0) {
+            $json['msg'] = $dataOrMsg;
+        }
+        return json_encode($json, JSON_UNESCAPED_UNICODE);
+    }
+}

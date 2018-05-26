@@ -1,0 +1,79 @@
+<?php
+namespace App\Http\Controllers\Api;
+use App\Http\DAL\PowerDAL;
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+
+class PowerController extends Controller{
+
+    /*
+     * 权限管理的列表
+     */
+    public function getPowerList(Request $request)
+    {
+        $pageNum = empty($request->get('pageNum')) ? 1 : intval($request->get('pageNum')); //页码
+        $pageSize = empty($request->get('pageSize')) ? 20 : intval($request->get('pageSize'));//每条显示的条数
+        $pageSize = ($pageNum - 1) * $pageSize; //每页显示多条数据
+        $data = PowerDAL::getInfo($pageSize); //获取数据
+        $arr=[];
+        foreach ($data as $item){
+            $arr[]=[
+                'id'=>$item->id,
+                'title'=>$item->title,
+                'powerType'=>$item->powerType,
+                'content'=>$item->content,
+                'ndate'=>date('Y-m-d',$item->ndate),
+                'remark'=>$item->remark
+            ];
+        }
+        return json_encode(["status" => 1, "data" => $arr,"totalPage"=>PowerDAL::getCount()]);
+    }
+
+    /*
+     * 新增/编辑
+     */
+    public function getAdd(Request $request){
+        $title=$request->get('title');  //权限名称
+        $powerType=$request->get('powerType',0); //权限类型
+        $content=$request->get('content'); //权限描述
+        $ndate=$request->get('ndate');//创建时间
+        $remark=$request->get('remark'); //描述
+        $id=$request->get('id',0); //id
+
+        $arr=[
+            'title'=>$title,
+            'powerType'=>$powerType,
+            'content'=>$content,
+            'ndate'=>strtotime($ndate),
+            'remark'=>$remark
+        ];
+        if($id>0){
+            PowerDAL::getAdd($arr,$id);
+        }else{
+            PowerDAL::getAdd($arr,$id);
+        }
+        return json_encode(["status"=>1,"msg"=>"保存成功"]);
+    }
+
+    /*
+     * 删除信息
+     */
+    public function getDel(Request $request){
+        $id=$request->get('id',0); //删除信息
+        PowerDAL::getDel($id);
+        return json_encode(["status"=>1,"msg"=>"删除成功"]);
+    }
+
+    /*
+     * 批量删除信息
+     */
+    public function getDelList(Request $request){
+        $id=$request->get('id',0); //id
+       //$arr_id=explode(',',$id);
+        PowerDAL::getDelList($id);
+        return json_encode(["status"=>1,"msg"=>"删除成功"]);
+    }
+
+}
+
+

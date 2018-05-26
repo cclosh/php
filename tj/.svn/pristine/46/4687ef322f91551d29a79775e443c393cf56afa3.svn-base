@@ -1,0 +1,39 @@
+<?php
+namespace App\Http\DAL;
+use DB;
+
+class RoleDAL {
+
+    protected static $table="user_role";
+
+    /*
+     * 获取角色的列表
+     */
+    public static function getroleList($pageSize){
+        return DB::table(static::$table)
+            ->skip($pageSize)
+            ->take(20)
+            ->get();
+    }
+    /*
+     * 编辑信息
+     */
+    public static function getAdd($model,$id){
+        return DB::table(static::$table)->where('id',$id)->update($model);
+    }
+    /*
+     * 删除
+     */
+    public static function getDel($id){
+        return DB::table(static::$table)->where('id',$id)->delete();
+    }
+    /*
+     * 获取所有权限
+     */
+    public static function getpowerList(){
+        return DB::table('userpower')->select('id','title')->get();
+    }
+
+
+
+}

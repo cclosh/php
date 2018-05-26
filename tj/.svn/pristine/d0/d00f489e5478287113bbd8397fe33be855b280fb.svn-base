@@ -1,0 +1,272 @@
+<?php
+
+namespace App\Http\DAL;
+
+use DB;
+
+class QuestionDAL extends DAL
+{
+
+    protected static $table_name = 'question';
+
+    public static function getQuestionBase($ids = [], $pageNum, $pageSize, $uID = 0, $isCompany = -1, $keyword = "", $maxQID = 0)
+    {
+        $list = DB::table('question as q')
+            ->select([
+                'q.id',
+                'u.nickName',
+                'u.headIcon',
+                'q.title',
+                'q.content',
+                'q.follow',
+                'q.view',
+                'q.isAnonymous',
+                'q.isCompany',
+                'q.answer',
+                'q.addTime'
+            ])
+            ->leftJoin('userInfo as u', 'u.id', '=', 'q.createUID')
+            ->where('u.forbidden', '0')
+            ->orderBy('addTime', 'desc');
+
+        if ($ids) {
+            $list->whereIn('q.id', $ids);
+        }
+
+        if ($maxQID > 0) {
+            $list->where('q.id', '<=', $maxQID);
+        }
+
+        if ($isCompany >= 0) {
+            $list->where('q.isCompany', $isCompany);
+        }
+
+        if (!empty($keyword)) {
+            KeywordDAL::tableDelete([
+                'uID' => $uID,
+                'keyword' => $keyword
+            ]);
+
+            KeywordDAL::tableInsert([
+                'uID' => $uID,
+                'keyword' => $keyword,
+                'addTime' => time()
+            ]);
+            $list->where(function ($q) use ($keyword) {
+                $q->where('title', 'like', "%$keyword%")->orWhere('content', 'like', "%$keyword%");
+            });
+        }
+
+        $list = $list->paginate($pageSize);
+
+        $list = self::pageHandel($list);
+
+
+        if ($list->data) {
+
+            $likeAndFollow = User_questionDAL::getFollowByUserID($uID);
+            foreach ($list->data as $one) {
+                $one->isFollow = isset($likeAndFollow['follow'][$one->id]) ? 1 : 0;
+            }
+        }
+
+        return $list;
+    }
+
+    public static function questionAddView($qID)
+    {
+        return DB::table(static::$table_name)->where('id', $qID)->increment('view', 1);
+
+    }
+
+
+    public static function questionAddFllow($qID, $add = 1)
+    {
+        return DB::table(static::$table_name)->where('id', $qID)->increment('follow', $add);
+    }
+
+    public static function getQuestionBaseByQID($qID, $uID = 0, $pageNum, $pageSize, $maxAID = 0)
+    {
+        $question = DB::table('question as q')
+            ->select([
+                'q.id',
+                'u.nickName',
+                'u.headIcon',
+                'q.title',
+                'q.follow',
+                'q.content',
+                'q.view',
+                'q.isAnonymous',
+                'q.isCompany',
+                'q.answer',
+                'q.addTime',
+            ])
+            ->leftJoin('userInfo as u', 'u.id', '=', 'q.createUID')
+            ->where('u.forbidden', '0')
+            ->where('q.id', $qID)
+            ->first();
+
+        if ($question) {
+
+            $likeAndFollow = User_questionDAL::getFollowByUserID($uID);
+            $question->isFollow = isset($likeAndFollow['follow'][$question->id]) ? 1 : 0;
+        }
+
+//获取回复
+        $answer = DB::table('answer as a')
+            ->select(DB::raw("
+                a.id,
+                u.nickName,
+                u.headIcon,
+                a.answer,
+                a.answerUID,
+                a.addTime,
+                a.isAnonymous,
+                (select count(0) from answerLike where aID=a.id) as `like`
+                "
+            ))
+            ->leftJoin('userInfo as u', 'u.id', '=', 'a.answerUID')
+            ->where('u.forbidden', '0')
+            ->where('a.qid', $qID)
+            ->orderBy('addTime', 'desc');
+
+        if ($maxAID > 0) {
+            $answer->where('a.id', '<=', $maxAID);
+        }
+
+        $answer = $answer->paginate($pageSize);
+
+        $answer = self::pageHandel($answer);
+
+
+        $like = AnswerLikeDAL::getLikeByUserID($uID);
+
+        foreach ($answer->data as $one) {
+
+            $one->isLike = isset($like['like'][$uID][$one->id]) ? 1 : 0;
+        }
+
+        return $list = [
+            'question' => $question,
+            'answer' => $answer,
+        ];
+    }
+
+    public
+    static function getUserFollowQuestionList($userID, $pageNum, $pageSize, $maxQID)
+    {
+        $uid = UserInfoDAL::tableFirst(['userID' => $userID], ['id']);
+
+        $ids_DB = User_questionDAL::getFollowByUserID($uid);
+
+        $ids = [];
+
+        $list = [];
+
+        if ($ids_DB) {
+
+            foreach ($ids_DB['follow'] as $key => $value) $ids[] = $key;
+
+            $list = self::getQuestionBase($ids, $pageNum, $pageSize, $uid->id, -1, "", $maxQID);
+        }
+
+        return $list;
+    }
+
+    public
+    static function getUserQuestionList($userID, $pageNum, $pageSize, $maxQID)
+    {
+        $uid = UserInfoDAL::tableFirst(['userID' => $userID], ['id']);
+
+        $ids_DB = self::tableGet(['createUID' => $uid->id]);
+
+        $ids = [];
+
+        $list = [];
+
+        if ($ids_DB) {
+
+            foreach ($ids_DB as $one) $ids[] = $one->id;
+
+            $list = self::getQuestionBase($ids, $pageNum, $pageSize, $uid->id, -1, "", $maxQID);
+        }
+
+        return $list;
+    }
+
+
+    public
+    static function getQuestionIndex($userID, $pageNum, $pageSize, $keyword, $maxQID)
+    {
+        $uid = UserInfoDAL::tableFirst(['userID' => $userID], ['id']);
+
+
+        $list = self::getQuestionBase([], $pageNum, $pageSize, $uid->id, 0, $keyword, $maxQID);
+
+
+        return $list;
+    }
+
+    public
+    static function getUserAnswerList($userID, $pageNum, $pageSize, $maxAID)
+    {
+        $uid = UserInfoDAL::tableFirst(['userID' => $userID], ['id']);
+
+        $ids_DB = AnswerDAL::tableGet(['answerUID' => $uid->id]);
+
+        $ids = [];
+
+        $list = [];
+
+        if ($ids_DB) {
+
+            foreach ($ids_DB as $one) $ids[] = $one->qID;
+
+            $list = self::getQuestionBase($ids, $pageNum, $pageSize, $uid->id, -1, "", $maxAID);
+        }
+
+        return $list;
+    }
+
+    public static function getMyReflection($userID)
+    {
+        $uid = UserInfoDAL::tableFirst(['userID' => $userID], ['id']);
+
+        $list = [];
+        if ($uid) {
+            $uid = $uid->id;
+
+            $list = DB::select('
+                                select (SELECT COUNT(0) from question where createUID=?) as questionCount,
+                                (SELECT  count(0)   from answer  where answerUID=?) as answerCount,
+                                (SELECT  count(0) from user_question where uID=? ) as followCount,
+                                (SELECT count(0)  from answerlike where aID in (SELECT id from answer  where answerUID=?)) as achievementCount', [$uid, $uid, $uid, $uid]);
+        }
+        return $list;
+    }
+
+
+    public
+    static function getMyAchievement($userID, $pageNum, $pageSize, $maxAID)
+    {
+        $uid = UserInfoDAL::tableFirst(['userID' => $userID], ['id']);
+
+        $list = DB::table('answer as a')
+            ->select(DB::raw('q.id as qID,q.title,a.addTime,al.addTime as likeTime,al.realName,al.headIcon'))
+            ->leftJoin(DB::raw('(SELECT * from answerlike LEFT JOIN userinfo on answerlike.uID=userinfo.id) as al'), 'a.id', '=', 'al.aID')
+            ->leftJoin('question as q', 'a.qID', '=', 'q.id')
+            ->orderBy('al.addTime', 'desc')
+            ->where('a.answerUID', $uid->id);
+
+        if ($maxAID > 0) {
+            $list->where('a.id', '<=', $maxAID);
+        }
+        $list = $list->paginate($pageSize);
+
+        $list = self::pageHandel($list);
+
+        return $list;
+    }
+
+
+}

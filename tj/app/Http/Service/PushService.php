@@ -1,0 +1,35 @@
+<?php
+
+
+namespace App\Http\Service;
+
+use App\Http\Commands\PushHelper;
+use App\Http\Commands\RedisHelper;
+use App\Http\DAL\UserInfoDAL;
+use Log;
+
+class PushService
+{
+
+    public static function pushToUID($uID, $content)
+    {
+        $key = "answer_token_2_" . $uID;
+        $userToken = RedisHelper::get($key, function () use ($uID) {
+            $userInfo = UserInfoDAL::tableFirst(['id' => $uID]);
+            if ($userInfo) {
+                return $userInfo->token;
+            } else {
+                return '';
+            }
+        }, 10);
+
+
+        $title = '道答';
+
+        $ret = PushHelper::pushToToken($title, $content, $userToken);
+
+        if (!isset($ret['ret_code']) || $ret['ret_code'] != 0) {
+            Log::error(sprintf('推送失败：%s_%s_%s_%s', $uID, $userToken, $title, $content));
+        }
+    }
+}

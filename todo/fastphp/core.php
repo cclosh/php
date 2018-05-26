@@ -4,6 +4,7 @@ class Fast
 {
     public function run()
     {
+        //自动加载
         spl_autoload_register(array($this, 'loadClass'));
 
         $this->saveConfig();

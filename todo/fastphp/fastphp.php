@@ -1,5 +1,7 @@
 <?php
 
+define('START_TIME', time());
+
 //定义必要配置项
 define('ROOT', __DIR__);
 
